@@ -129,12 +129,13 @@ Variance reduction techniques are widely used for reducing the noise of Monte Ca
     </div>
     <el-divider></el-divider>
     <!-- canvas zero -->
+    <h5 class="title is-5">Importance sampling is very helpful!</h5>
     <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
       Monte Carlo integration estimates an integral 
-      <vue-latex :expression="'\\int f(x) \\mathrm{d} x'" />
-      by averaging the values
-      of the <span style="color: #3f8bbe">integrand <vue-latex :expression="'f'" /></span> at randomly sampled points <vue-latex :expression="'\X_i'" />, 
-      i.e. <vue-latex :expression="'\\sum_{i}{f(X_i)}'" />. 
+      <vue-latex :expression="'\\int f(x) \\mathrm{d} x'" />, 
+      by averaging the values of the 
+      <b><span style="color: #3f8bbe">function <vue-latex :expression="'f'" /></span></b> at random sample points <vue-latex :expression="'X_i'" />. 
+      In simple terms, we compute <vue-latex :expression="'\\frac{1}{N}\\sum_{i}{f(X_i)}'" />. 
       If <vue-latex :expression="'f'" /> is far from constant,
       the variance of this estimator can be large,
       as we are averaging values that are not close to each other.
@@ -147,38 +148,44 @@ Variance reduction techniques are widely used for reducing the noise of Monte Ca
     <div style="text-align: center; width: 100%;">
       <div ref="canvas_is_estimator"></div>
       <br/>
-      <div class="slider-demo-block">
-        <span class="demonstration">Sampling speed</span>
-        <el-slider v-model="sample_speed_1" />
-      </div>
-      <div class="slider-demo-block">
-        <span class="demonstration">Importance sampling</span>
-        <el-slider v-model="alpha_is_1" />
-      </div>
+      <center style="padding-right: 150px;">
+        <div class="slider-demo-block">
+          <span class="demonstration">Sampling speed</span>
+          <el-slider v-model="sample_speed_1" />
+        </div>
+        <div class="slider-demo-block">
+          <span class="demonstration">Importance sampling</span>
+          <el-slider v-model="alpha_is_1" />
+        </div>
+      </center>
     </div>
     <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
-      A key technique is variance reduction is importance sampling,
+      A key technique in variance reduction is importance sampling,
       which allows us to sample from a <span style="color: #888888">distribution <vue-latex :expression="'g'" /></span>,
       and then averaging the <vue-latex :expression="'\\frac{f(X_i)}{g(X_i)}'" /> instead.
       Obviously, if  <vue-latex :expression="'g'" /> becomes more proportional to <vue-latex :expression="'f'" />,
       the term we are averaging becomes more constant, and the variance of the estimator becomes smaller.
       <br/><br/>
       <span style="color: #888888">
-      <i>*Drag the slider with "importance sampling" label to right to see how importance sampling help
-      reduce the variance of the estimator.</i>
+      <i>* Try moving the "importance sampling" slider to the right. 
+        As the sampling distribution becomes more proportional to <vue-latex :expression="'f'" />, 
+        the values we average (f/g) become more flat, leading to lower variance.</i>
       </span>
     </p>
     <el-divider></el-divider>
+    <h5 class="title is-5">... maybe not that helpful for multiple integrands?</h5>
     <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
       While importance sampling is a powerful technique, what if we have more than one integrand,
       for example, <span style="color: #ff9130">two</span>?
     </p>
     <div style="text-align: center; width: 100%;">
       <div ref="canvas_vvis_estimator"></div>
-      <div class="slider-demo-block">
-        <span class="demonstration">Importance sampling</span>
-        <el-slider v-model="alpha_is_2" />
-      </div>
+        <center style="padding-right: 150px;">
+          <div class="slider-demo-block">
+            <span class="demonstration">Importance sampling</span>
+            <el-slider v-model="alpha_is_2" />
+            </div>
+        </center>
     </div>
     <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
       <span style="color: #888888">
@@ -190,6 +197,57 @@ Variance reduction techniques are widely used for reducing the noise of Monte Ca
       the variance of the estimator for the other integrand becomes larger.
       Generally, it seems unlikely that we can find a sampling distribution
       that is proportional to all the integrands at the same time.
+      Therefore, importance sampling is not that helpful for multiple (or say "vector-valued") integrands.
+    </p>
+    <el-divider></el-divider>
+    <h5 class="title is-5">Why vector-valued integration matters?</h5>
+    <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
+      But wait, why not just estimate each scalar-valued integration independently, then we can 
+      use different sampling distributions for each integrand?
+      Why we even care about vector-valued integration?
+      <br/><br/>
+      Because vector-valued integration is everywhere!
+      <br/><br/>
+      In forward rendering, we often approximate the radiance using three color channels (RGB).
+      The rendering equation is thus a vector-valued integral, where each color channel has an integrand.
+    </p>
+    <center>
+      <div style="width: 65%; max-width: 600px; margin: auto;">
+        <picture>
+          <source srcset="https://SuikaSibyl.github.io/files/vvmc/cboxrgb.webp" type="image/webp">
+          <img src="https://SuikaSibyl.github.io/files/vvmc/cboxrgb.webp">
+        </picture>
+      </div>
+    </center>
+    <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
+Notice that once a path is sampled, computing either a single-channel contribution or the full RGB contribution typically incurs the same cost. 
+The main expense lies in tracing the path—that is, generating a sample. 
+Therefore, solving each channel independently would require tracing three times as many paths, which is inefficient.
+We want each path to contribute to all three channels simultaneously, which is why we need vector-valued integration.
+    </p>
+    <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
+      The same is true for inverse rendering, and even general gradient-based optimization problems.
+      In practice, we usually have many parameters to optimize,
+      thus we need to estimate the gradient vector of all the parameters.
+      Simultaneously, stochastic gradient descent (SGD) is a common optimization method,
+      that samples a batch of data points to compute the gradient, which is a Monte Carlo estimate.
+      Therefore, the gradient estimation is also a vector-valued integration (or summation).
+    </p>
+    <center>
+      <div style="width: 65%; max-width: 600px; margin: auto;">
+        <picture>
+          <source srcset="https://SuikaSibyl.github.io/files/vvmc/backprop.webp" type="image/webp">
+          <img src="https://SuikaSibyl.github.io/files/vvmc/backprop.webp">
+        </picture>
+        <p>* this figure comes from
+          <a href="https://www.youtube.com/watch?v=aircAruvnKk" target="_blank">3Blue1Brown</a>.
+        </p>
+      </div>
+    </center>
+    <p style="margin-top: 1.0em; margin-bottom: 2.5em; font-size: 1.05em;">
+      In many cases, we can compute the entire gradient vector in a single pass,
+      thanks to backpropagation. Therefore, it is also a bad idea to estimate 
+      each entry (partial derivative) of the gradient vector independently.
     </p>
   </el-col>
 </el-row>
@@ -265,6 +323,8 @@ data () {
     sample_speed_1: 5,
     alpha_is_1: 0,
     alpha_is_2: 50,
+    two_canvas_1: null,
+    viewer_canvas_1: null,
   };
 },
 watch: {
@@ -275,7 +335,7 @@ watch: {
 },
 mounted() {
   this.loadAndConvertImage();
-  window.addEventListener('resize', this.onResize);
+  // window.addEventListener('resize', this.onResize);
 },
 methods: {
   onResize () {
@@ -297,45 +357,54 @@ methods: {
     // this.draw_canvas_5();
   },
   draw_canvas_1() {
-    const params = { width: 600, height: 300, type: Two.Types.canvas };
-    const two = new Two(params).appendTo(this.$refs.canvas_is_estimator);    
-    const g = (x) => (ExampleBeckmann.g1(x) * (this.alpha_is_1/100) + 1. * (1 - this.alpha_is_1/100));
-    const f = (x) => {
-      const result = ExampleBeckmann.f1(x) / g(x);
-      if (isNaN(result)) {
-        return 0;
-      }
-      return result;
-    };
-    const gSample = (N) => {
-      // random N samples uniformly from [0, 1]
-      const samples = [];
-      for (let i = 0; i < N; i++) {
-        const r0 = Math.random();
-        if (r0 < this.alpha_is_1/100) {
-          samples.push(ExampleBeckmann.sample_g1([Math.random(),Math.random(),Math.random()]));
-        } else {
-          samples.push(Math.random());
-        }
-      }
-      return samples;
-    };
-    const getSpeed = () => { return this.sample_speed_1; }
-    const option = {
-      two: two,
-      f: f,
-      g: g,
-      numSamples: 10,
-      gSample: gSample,
-      speed: getSpeed,
-      draw_samples: true,
-    };
+      const container = this.$refs.canvas_is_estimator;
+      container.innerHTML = ''; // Clear previous canvas
 
-    const viewer = new EstimationVisualizer(option);
+      const params = { width: 600, height: 300, type: Two.Types.canvas };
+      const two = new Two(params).appendTo(container);
+      // log
+      
+
+      const g = (x) => (ExampleBeckmann.g1(x) * (this.alpha_is_1/100) + 1. * (1 - this.alpha_is_1/100));
+      const f = (x) => {
+        const result = ExampleBeckmann.f1(x) / g(x);
+        if (isNaN(result)) {
+          return 0;
+        }
+        return result;
+      };
+      const gSample = (N) => {
+        // random N samples uniformly from [0, 1]
+        const samples = [];
+        for (let i = 0; i < N; i++) {
+          const r0 = Math.random();
+          if (r0 < this.alpha_is_1/100) {
+            samples.push(ExampleBeckmann.sample_g1([Math.random(),Math.random(),Math.random()]));
+          } else {
+            samples.push(Math.random());
+          }
+        }
+        return samples;
+      };
+      const getSpeed = () => { return this.sample_speed_1; }
+      const option = {
+        two: two,
+        f: f,
+        g: g,
+        numSamples: 10,
+        gSample: gSample,
+        speed: getSpeed,
+        draw_samples: true,
+      };
+
+      this.viewer_canvas_1 = new EstimationVisualizer(option);
   },
   draw_canvas_2() {
+  const container = this.$refs.canvas_vvis_estimator;
+  container.innerHTML = ''; // Clear previous canvas
+
   const params = { width: 600, height: 250, type: Two.Types.canvas };
-  const two = new Two(params).appendTo(this.$refs.canvas_vvis_estimator);    
+  const two = new Two(params).appendTo(container);
   const g = (x) => {
     if(this.alpha_is_2 == 50) {
       return 1

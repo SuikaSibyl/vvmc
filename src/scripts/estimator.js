@@ -1,176 +1,135 @@
 import { he, th } from 'element-plus/es/locales.mjs';
 import Two from 'two.js';
 
+const rgba = (rgb, alpha) => `rgba(${rgb.join(',')},${alpha})`;
+
 export class Curve {
-    constructor(options) {
-        this.f = options.f;
-        this.two = options.two;
-        this.left = options.left;
-        this.width = options.width;
-        this.height = options.height;
-        this.bottom = options.bottom;
-        this.rgb = options.rgb;
+   
+    constructor({ f, two, left, width, height, bottom, rgb }) {
+        this.f = f;
+        this.two = two;
+        this.left = left;
+        this.width = width;
+        this.height = height;
+        this.bottom = bottom;
+        this.rgb = rgb;
 
-        const left = options.left;
-        const width = options.width;
-        const height = options.height;
-        const bottom = options.bottom;
+        this.fCurve = new Two.Path([], false, false);
+        this.fCurveFill = new Two.Path([], true, false);
 
-        const fCurve = new Two.Path([], false, false);
-        const fCurveFill = new Two.Path([], true, false);
-
-        // initialize the curve points
-        for (let x = 1e-6; x < 1.01-1e-6; x += 0.01) {
+        for (let i = 0; i < 100; i++) {
+            const x = i / 99;
             const px = left + width * x;
-            const py = bottom - height * this.f(x);
-            fCurve.vertices.push(new Two.Anchor(px, py));
-            fCurveFill.vertices.push(new Two.Anchor(px, py));
+            const py = bottom - height * f(x);
+            this.fCurve.vertices.push(new Two.Anchor(px, py));
+            this.fCurveFill.vertices.push(new Two.Anchor(px, py));
         }
-        // shade the curve
-        const rgba_08 = `rgba(${this.rgb.join(',')},0.8)`;
-        const rgba_03 = `rgba(${this.rgb.join(',')},0.3)`;
-        fCurve.stroke = rgba_08;
-        fCurve.fill = 'transparent';
-        fCurve.linewidth = 2;
-        this.two.add(fCurve);
-        
-        // close the curve_fill shape
-        fCurveFill.vertices.push(new Two.Anchor(left + width, bottom));
-        fCurveFill.vertices.push(new Two.Anchor(left, bottom));
-        fCurveFill.fill = rgba_03;
-        fCurveFill.noStroke();
-        this.two.add(fCurveFill);
 
-        this.fCurve = fCurve;
-        this.fCurveFill = fCurveFill;
+        this.fCurve.stroke = rgba(rgb, 0.8);
+        this.fCurve.fill = 'transparent';
+        this.fCurve.linewidth = 2;
+        this.two.add(this.fCurve);
+
+        this.fCurveFill.vertices.push(new Two.Anchor(left + width, bottom));
+        this.fCurveFill.vertices.push(new Two.Anchor(left, bottom));
+        this.fCurveFill.fill = rgba(rgb, 0.3);
+        this.fCurveFill.noStroke();
+        this.two.add(this.fCurveFill);
     }
+
       
     update() {
-        let i = 0;
-        for (let x = 1e-6; x < 1.01-1e-6; x += 0.01) {
+        for (let i = 0; i < 100; i++) {
+            const x = i / 99;
             const px = this.left + this.width * x;
             const py = this.bottom - this.height * this.f(x);
-            this.fCurve.vertices[i].x = px;
-            this.fCurve.vertices[i].y = py;
-            this.fCurveFill.vertices[i].x = px;
-            this.fCurveFill.vertices[i].y = py;
-            i++;
+            this.fCurve.vertices[i].set(px, py);
+            this.fCurveFill.vertices[i].set(px, py);
         }
-        this.fCurveFill.vertices[i].x = this.left + this.width;
-        this.fCurveFill.vertices[i].y = this.bottom;
-        i++;
-        this.fCurveFill.vertices[i].x = this.left;
-        this.fCurveFill.vertices[i].y = this.bottom;
-        i++;
+        const i = 100;
+        this.fCurveFill.vertices[i].set(this.left + this.width, this.bottom);
+        this.fCurveFill.vertices[i + 1].set(this.left, this.bottom);
     }
 };
 
 export class Histogram {
-    constructor(params) {
-        this.numBins = params.numBins;
-        this.two = params.two;
-        this.sampleSum = 0;
-        this.numSamples = 0;
+    constructor({ numBins, two, left, width, height, bottom }) {
+        this.numBins = numBins;
+        this.two = two;
+        this.left = left;
+        this.width = width;
+        this.height = height;
+        this.bottom = bottom;
         this.bins = [];
-        this.binSamples = [];
-        this.left = params.left;
-        this.width = params.width;
-        this.height = params.height;
-        this.bottom = params.bottom;
+        this.binSamples = new Array(numBins).fill(0);
 
-        for(let i = 0; i < this.numBins; i++) {
-            const bin = this.two.makeRectangle(
-                this.left,
-                this.bottom - this.height * i / (this.numBins - 1),
-                2,
-                this.height / this.numBins);
+        for (let i = 0; i < numBins; i++) {
+            const bin = two.makeRectangle(left, bottom - height * i / (numBins - 1), 2, height / numBins);
             bin.fill = 'rgba(31, 119, 180, 0.3)';
             bin.noStroke();
             this.bins.push(bin);
-            this.binSamples.push(0);
         }
     }
-    
+
     addSamples(y) {
         const bin = Math.floor((this.bottom - y) / this.height * this.numBins);
-        this.binSamples[bin] ++;
-        this.numSamples += 1;
-        this.sampleSum += y;
+        if (bin >= 0 && bin < this.numBins) this.binSamples[bin]++;
     }
 
     clear() {
-        for(let i = 0; i < this.numBins; i++) {
-            var width = 5
-            this.bins[i].translation.x = this.left + width/2;
-            this.bins[i].width = width;
+        for (let i = 0; i < this.numBins; i++) {
+            this.bins[i].translation.x = this.left + 2.5;
+            this.bins[i].width = 5;
             this.binSamples[i] = 0;
-        } 
-        this.numSamples = 0;
+        }
     }
 
     update() {
-        for(let i = 0; i < this.numBins; i++) {
-            var width = this.binSamples[i] / this.numSamples;
-            if(width > 0.3) width = 0.3;
-            width *= 500;
-            this.bins[i].translation.x = this.left + width/2;
+        const total = this.binSamples.reduce((a, b) => a + b, 0) || 1;
+        for (let i = 0; i < this.numBins; i++) {
+            const width = Math.min(this.binSamples[i] / total, 0.3) * 500;
+            this.bins[i].translation.x = this.left + width / 2;
             this.bins[i].width = width;
             this.binSamples[i] *= 0.95;
-        } 
-        this.numSamples *= 0.95;
-        // // this.avgerageBin.translation.x = this.left + this.sampleSum / this.numSamples * 500;
-        // this.avgerageBin.width = 100;
-        // this.avgerageBin.translation.x = this.left + 50;
-        // this.avgerageBin.translation.y = this.sampleSum / this.numSamples;
+        }
     }
-};
+}
 
 export class HorizontalHistogram {
-    constructor(params) {
-        this.numBins = params.numBins;
-        this.two = params.two;
-        this.sampleSum = 0;
-        this.numSamples = 0;
+    constructor({ numBins, two, left, width, height, bottom }) {
+        this.numBins = numBins;
+        this.two = two;
+        this.left = left;
+        this.width = width;
+        this.height = height;
+        this.bottom = bottom;
         this.bins = [];
-        this.binSamples = [];
-        this.left = params.left;
-        this.width = params.width;
-        this.height = params.height;
-        this.bottom = params.bottom;
+        this.binSamples = new Array(numBins).fill(0);
 
-        const width = this.width / this.numBins;
-        for(let i = 0; i < this.numBins; i++) {
-            const bin = this.two.makeRectangle(
-                this.left + this.width * (i + 0.5) / (this.numBins),
-                this.bottom,
-                this.width / this.numBins - 1.5,
-                0);
+        const binWidth = width / numBins;
+        for (let i = 0; i < numBins; i++) {
+            const bin = two.makeRectangle(left + binWidth * (i + 0.5), bottom, binWidth - 1.5, 0);
             bin.fill = 'rgba(100, 100, 100, 0.2)';
             bin.noStroke();
             this.bins.push(bin);
-            this.binSamples.push(0);
         }
     }
-    
+
     addSamples(x) {
         const bin = Math.floor((x - this.left) / this.width * this.numBins);
-        this.binSamples[bin] ++;
-        this.numSamples += 1;
+        if (bin >= 0 && bin < this.numBins) this.binSamples[bin]++;
     }
 
     update() {
-        for(let i = 0; i < this.numBins; i++) {
-            const height = this.binSamples[i] * 1100 / this.numSamples;
-            this.bins[i].translation.y = this.bottom - height/2;
+        const total = this.binSamples.reduce((a, b) => a + b, 0) || 1;
+        for (let i = 0; i < this.numBins; i++) {
+            const height = this.binSamples[i] * 1100 / total;
+            this.bins[i].translation.y = this.bottom - height / 2;
             this.bins[i].height = height;
-        }
-        
-        for(let i = 0; i < this.numBins; i++) {
             this.binSamples[i] *= 0.95;
         }
-        this.numSamples *= 0.95;
     }
-};
+}
 
 export class Samples {
     constructor(options) {
