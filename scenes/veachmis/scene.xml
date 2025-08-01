@@ -1,0 +1,180 @@
+<scene version="3.0.0">
+	<default name="integrator" value="path" />
+	<default name="spp" value="64" />
+	<default name="resy" value="720" />
+	<default name="resx" value="1280" />
+	<default name="max_depth" value="3" />
+	<integrator type="$integrator">
+		<integer name="max_depth" value="$max_depth" />
+	</integrator>
+	<sensor type="perspective">
+		<float name="fov" value="35" />
+		<transform name="to_world">
+			<matrix value="-4.37113e-008 0 -1 28.2792 0 1 0 3.5 1 0 -4.37113e-008 1.23612e-006 0 0 0 1" />
+		</transform>
+		<sampler type="independent">
+			<integer name="sample_count" value="$spp" />
+		</sampler>
+		<film type="hdrfilm">
+			<integer name="width" value="$resx" />
+			<integer name="height" value="$resy" />
+			<string name="file_format" value="openexr" />
+			<string name="pixel_format" value="rgb" />
+			<rfilter type="tent" />
+		</film>
+	</sensor>
+	<bsdf type="twosided" id="DiffuseBSDF">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0.5, 0.5, 0.5" />
+		</bsdf>
+	</bsdf>
+	<bsdf type="twosided" id="SmoothBSDF">
+		<bsdf type="roughconductor">
+			<float name="alpha" value="0.01" />
+			<string name="distribution" value="beckmann" />
+			<rgb name="specular_reflectance" value="0.3, 0.3, 0.3" />
+			<rgb name="eta" value="0.200438, 0.924033, 1.10221" />
+			<rgb name="k" value="3.91295, 2.45285, 2.14219" />
+		</bsdf>
+	</bsdf>
+	<bsdf type="twosided" id="GlossyBSDF">
+		<bsdf type="roughconductor">
+			<float name="alpha" value="0.05" />
+			<string name="distribution" value="beckmann" />
+			<rgb name="specular_reflectance" value="0.3, 0.3, 0.3" />
+			<rgb name="eta" value="0.200438, 0.924033, 1.10221" />
+			<rgb name="k" value="3.91295, 2.45285, 2.14219" />
+		</bsdf>
+	</bsdf>
+	<bsdf type="twosided" id="RoughBSDF">
+		<bsdf type="roughconductor">
+			<float name="alpha" value="0.1" />
+			<string name="distribution" value="beckmann" />
+			<rgb name="specular_reflectance" value="0.3, 0.3, 0.3" />
+			<rgb name="eta" value="0.200438, 0.924033, 1.10221" />
+			<rgb name="k" value="3.91295, 2.45285, 2.14219" />
+		</bsdf>
+	</bsdf>
+	<bsdf type="twosided" id="NullBSDF">
+		<bsdf type="diffuse">
+			<rgb name="reflectance" value="0, 0, 0" />
+		</bsdf>
+	</bsdf>
+	<bsdf type="twosided" id="SuperRoughBSDF">
+		<bsdf type="roughconductor">
+			<float name="alpha" value="0.25" />
+			<string name="distribution" value="beckmann" />
+			<rgb name="specular_reflectance" value="0.3, 0.3, 0.3" />
+			<rgb name="eta" value="0.200438, 0.924033, 1.10221" />
+			<rgb name="k" value="3.91295, 2.45285, 2.14219" />
+		</bsdf>
+	</bsdf>
+	<shape type="cube" id="Smooth">
+		<transform name="to_world">
+			<matrix value="0.805757 0.0961775 0 0.264069 -0.673242 0.115108 0 4.09801 0 0 4 0 0 0 0 1" />
+		</transform>
+		<ref id="SmoothBSDF" />
+	</shape>
+	<shape type="cube" id="Glossy">
+		<transform name="to_world">
+			<matrix value="0.972057 0.0567134 0 3.06163 -0.396994 0.138865 0 2.71702 0 0 4 0 0 0 0 1" />
+		</transform>
+		<ref id="GlossyBSDF" />
+	</shape>
+	<shape type="cube" id="Rough">
+		<transform name="to_world">
+			<matrix value="1.03191 0.0277252 0 7.09981 -0.194077 0.147415 0 1.81891 0 0 4 0 0 0 0 1" />
+		</transform>
+		<ref id="RoughBSDF" />
+	</shape>
+	<shape type="rectangle" id="Diffuse_0001">
+		<transform name="to_world">
+			<matrix value="9.9 0 0 4.9 0 -4.32743e-007 9.9 0 0 -23.76 -1.03858e-006 0 0 0 0 1" />
+		</transform>
+		<ref id="DiffuseBSDF" />
+	</shape>
+	<shape type="rectangle" id="Diffuse_0002">
+		<transform name="to_world">
+			<matrix value="-4.32743e-007 -4.32743e-007 9.9 -5 -9.9 1.89158e-014 -4.32743e-007 9.9 0 -23.76 -1.03858e-006 0 0 0 0 1" />
+		</transform>
+		<ref id="DiffuseBSDF" />
+	</shape>
+	<shape type="sphere" id="Null_0001-1">
+		<float name="radius" value="0.6" />
+		<point name="center" x="0.5" y="7.2" z="-2.2" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="0.1, 7.59909, 1.0" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0001-2">
+		<float name="radius" value="0.6" />
+		<point name="center" x="-0.7" y="6.3" z="-2.8" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="7.59909, 1, 0.1" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0001-3">
+		<float name="radius" value="0.6" />
+		<point name="center" x="0" y="7.0" z="-3.4" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="2, 0.3, 7.59909" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0002-1">
+		<float name="radius" value="0.3" />
+		<point name="center" x="0.3" y="6.3" z="-0.3" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="30.3964, 0.1, 1" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0002-2">
+		<float name="radius" value="0.3" />
+		<point name="center" x="0" y="6.9" z="0" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="0.1, 30.3964, 1" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0002-3">
+		<float name="radius" value="0.3" />
+		<point name="center" x="-0.3" y="6.4" z="+0.3" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="1, 0.1, 30.3964" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0003-1">
+		<float name="radius" value="0.03" />
+		<point name="center" x="0.02" y="6.6" z="2.6" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="3039.64, 10, 100" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0003-2">
+		<float name="radius" value="0.03" />
+		<point name="center" x="0" y="6.5" z="2.7" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="10.64, 3039.64, 100" />
+		</emitter>
+	</shape>
+	<shape type="sphere" id="Null_0003-3">
+		<float name="radius" value="0.03" />
+		<point name="center" x="-0.02" y="6.7" z="2.8" />
+		<ref id="NullBSDF" />
+		<emitter type="area">
+			<rgb name="radiance" value="200, 20, 3039.64" />
+		</emitter>
+	</shape>
+	<shape type="cube" id="SuperRough">
+		<transform name="to_world">
+			<matrix value="1.04217 0.0182831 0 10.6769 -0.127982 0.148882 0 1.23376 0 0 4 0 0 0 0 1" />
+		</transform>
+		<ref id="SuperRoughBSDF" />
+	</shape>
+</scene>
