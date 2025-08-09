@@ -12,8 +12,18 @@ static const float M_SQRT2 = 1.41421356237309504880f;
 static const float M_INF = 1.0 / 0.0; // Infinity
 static const float M_ONE_MINUS_EPSILON = 0.999999940395355225f;
 static const float M_MACHINE_EPSILON = 1.0e-6f;
+static const float M_FLOAT_MIN = 1.0f / exp2(126);
+static const float M_FLOAT_MAX = 3.402823466e+38;
+static const int   M_INT_MAX = 2147483647;
 
 float gamma(int n) { return (n * M_MACHINE_EPSILON) / (1 - n * M_MACHINE_EPSILON); }
+
+/** Returns the smallest component of the vector. */
+float min_component(in const float3 v) { return min(v.x, min(v.y, v.z)); }
+/** Returns the largest component of the vector. */
+float max_component(in const float3 v) { return max(v.x, max(v.y, v.z)); }
+/** Returns the largest component of the vector. */
+float max_component(in const float4 v) { return max(max(v.x, v.y), max(v.z, v.w)); }
 
 float2 interpolate(float2 vertices[3], float3 bary) { return vertices[0] * bary[0] + vertices[1] * bary[1] + vertices[2] * bary[2]; }
 float3 interpolate(float3 vertices[3], float3 bary) { return vertices[0] * bary[0] + vertices[1] * bary[1] + vertices[2] * bary[2]; }
@@ -143,5 +153,55 @@ float next_float_down(float v) {
     else ++ui;
     return asfloat(ui);
 }
+
+[Differentiable] float evaluate_polynomial_0(float t, float c) { return c; }
+[Differentiable] float ffma(float a, float b, float c) { return a * b + c; }
+
+float evaluate_polynomial_1(float t, float c1, float c0) { return ffma(t, evaluate_polynomial_0(t, c0), c1); }
+float evaluate_polynomial_2(float t, float c2, float c1, float c0) { return ffma(t, evaluate_polynomial_1(t, c1, c0), c2); }
+float evaluate_polynomial_3(float t, float c3, float c2, float c1, float c0) { return ffma(t, evaluate_polynomial_2(t, c2, c1, c0), c3);}
+float evaluate_polynomial_4(float t, float c4, float c3, float c2, float c1, float c0) { return ffma(t, evaluate_polynomial_3(t, c3, c2, c1, c0), c4); }
+float evaluate_polynomial_5( float t, float c5, float c4, float c3, float c2, float c1, float c0) { return ffma(t, evaluate_polynomial_4(t, c4, c3, c2, c1, c0), c5); }
+float evaluate_polynomial_6(float t, float c6, float c5, float c4, float c3, float c2, float c1, float c0) { return ffma(t, evaluate_polynomial_5(t, c5, c4, c3, c2, c1, c0), c6); }
+
+// decompose a floating-point number into its components
+int exponent(float v) { return (asuint(v) >> 23) - 127; }
+int significand(float v) { return asuint(v) & ((1 << 23) - 1); }
+uint32_t sign_bit(float v) { return asuint(v) & 0x80000000; }
+float sample_exponential(float u, float a) { return -log(1 - u) / a; }
+
+float fast_exp(float x) {
+    // Compute x' such that e^x = 2^(x')
+    float xp = x * 1.442695041f;
+    // Find integer and fractional components of x'
+    float fxp = floor(xp);
+    float f = xp - fxp;
+    int i = (int)fxp;
+    // <Evaluate polynomial approximation of 2^f
+    float twoToF = evaluate_polynomial_3(
+        f, 1.f, 0.695556856f,
+        0.226173572f, 0.0781455737f);
+    // Scale 2^f by 2^i and return final result
+    int exponent = exponent(twoToF) + i;
+    if (exponent < -126) return 0;
+    if (exponent > 127) return M_INF;
+    uint32_t bits = asuint(twoToF);
+    bits &= 0b10000000011111111111111111111111u;
+    bits |= (exponent + 127) << 23;
+    return asfloat(bits);
+}
+float2 fast_exp(float2 v) { return float2(exp(v.x), exp(v.y)); }
+float3 fast_exp(float3 v) { return float3(exp(v.x), exp(v.y), exp(v.z)); }
+
+[Differentiable]
+float discard_nan_inf(float v) { return (isinf(v) || isnan(v)) ? 0 : v; }
+float2 discard_nan_inf(float2 v) { return select(isinf(v) || isnan(v), 0, v); }
+float3 discard_nan_inf(float3 v) { return select(isinf(v) || isnan(v), 0, v); }
+float4 discard_nan_inf(float4 v) { return select(isinf(v) || isnan(v), 0, v); }
+
+bool is_nan_or_inf(float v) { return isinf(v) || isnan(v); }
+bool2 is_nan_or_inf(float2 v) { return isinf(v) || isnan(v); }
+bool3 is_nan_or_inf(float3 v) { return isinf(v) || isnan(v); }
+bool4 is_nan_or_inf(float4 v) { return isinf(v) || isnan(v); }
 
 #endif // _SIBYLENGINE_MATH_HLSLI_

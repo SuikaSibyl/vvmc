@@ -6,5 +6,7 @@
 #include "srenderer/spt-rayquery.slang"
 #include "srenderer/spt-utils.slang"
 #include "srenderer/lights.slang"
+#include "srenderer/materials.slang"
+#include "srenderer/mediums.slang"
 
 #endif // _SRENDERER_PATH_TRACING_HLSLI_

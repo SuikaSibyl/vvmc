@@ -166,8 +166,11 @@ struct GeometryHit {
         flags = (flags & ~(GeometryFlag_FaceForwardMask << GeometryFlag_FaceForwardShift)) 
             | (value ? 1 : 0) << GeometryFlag_FaceForwardShift;
     }
-    
-    Frame get_shading_frame() { return Frame.from_normal(shadingNormal); }
+
+    Frame get_shading_frame() {
+        float faceforward = is_face_forward() ? 1.f : -1.f;
+        return Frame.from_normal(shadingNormal * faceforward); 
+    }
     
     Ray spawn_ray(float3 dir) {
         const float3 offsetDir = faceforward(geometryNormal, -dir, geometryNormal);

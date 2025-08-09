@@ -2,6 +2,8 @@
 #include "srenderer/materials.slang"
 #include "common/random.slang"
 
+#define MACRO_USE_MIS 1
+
 enum EstimatorEnum {
     PATH_TRACING = 0,
     RATIO_CONTROL_VARIATE = 1,
@@ -31,10 +33,15 @@ float3 path_tracing(
         if (visibility_ray_query(shadow_ray)) {
             float3 bsdf = primary_payload.bsdf_eval(-primary_ray.direction, shadow_ray.direction);
             float bsdf_pdf = primary_payload.bsdf_pdf(-primary_ray.direction, shadow_ray.direction);
+            #if MACRO_USE_MIS == 1
             radiance += bsdf * ls.L / (ls.pdf + bsdf_pdf);
+            #else
+            radiance += bsdf * ls.L / ls.pdf;
+            #endif
         }
     }
     
+    #if MACRO_USE_MIS == 1
     // If the primary ray hit something, sample the BSDF:
     if (let bs = primary_payload.bsdf_sample(primary_ray, sampler.next_float3())) {
         Ray ray = primary_payload.hit.spawn_ray(bs.wo);
@@ -45,6 +52,7 @@ float3 path_tracing(
             radiance += bs.bsdf * payload.emission() / (bs.pdf + light_pdf);
         }
     }
+    #endif
 
     return radiance;
 }
@@ -72,6 +80,8 @@ PathStatistics ratio_estimator(
     if (!primary_payload.hit.has_hit()) return stats;
     stats.f_emission += primary_payload.emission();
 
+    if(!primary_payload.material().hasValue) return stats;
+
     float3 per_channel_pdf_nee;
     if (let ls = primary_payload.light_sample_with_perchannel_pdf(primary_ray, sampler.next_float3(), per_channel_pdf_nee)) {
         Ray shadow_ray = primary_payload.hit.spawn_visibility_ray(ls.x);
@@ -79,11 +89,16 @@ PathStatistics ratio_estimator(
         if (visibility_ray_query(shadow_ray)) {
             float3 bsdf = primary_payload.bsdf_eval(-primary_ray.direction, shadow_ray.direction);
             float bsdf_pdf = primary_payload.bsdf_pdf(-primary_ray.direction, shadow_ray.direction);
+            #if MACRO_USE_MIS == 1
             stats.f_nee = bsdf * ls.L / (ls.pdf + bsdf_pdf);
+            #else
+            stats.f_nee = bsdf * ls.L / ls.pdf;
+            #endif
         }
     }
     
     // If the primary ray hit something, sample the BSDF:
+    #if MACRO_USE_MIS == 1
     float3 per_channel_pdf_brdf;
     if (let bs = primary_payload.bsdf_sample_with_perchannel_pdf(primary_ray, sampler.next_float3(), per_channel_pdf_brdf)) {
         Ray ray = primary_payload.hit.spawn_ray(bs.wo);
@@ -95,6 +110,7 @@ PathStatistics ratio_estimator(
             stats.f_brdf += bs.bsdf * payload.emission() / (bs.pdf + light_pdf);
         }
     }
+    #endif
     
     // BSDF sample failed, should not happen in this example
     return stats;

@@ -199,4 +199,49 @@ LightBounds union (LightBounds a, LightBounds b) {
     return lb;
 }
 
+struct MediumData {
+    enum MediumType {
+        HOMOGENEOUS,
+        GRID_MEDIUM,
+        RGBGRID_MEDIUM,
+        MAX_ENUM,
+    };
+
+    float3 sigma_a = float3(0, 0, 0);
+    uint32_t bitfield = 0x80000000;
+    float3 sigma_s = float3(0, 0, 0);
+    float scale = 1.0f;
+    float3 aniso = float3(0, 0, 0);
+    float temperatureScale = 0.0f;
+    float3 bound_min = {0, 0, 0};
+    float LeScale = 0.0f;
+    float3 bound_max = { 0, 0, 0 };
+    MediumType medium_type = MediumType::HOMOGENEOUS;
+    int3 density_xyz;
+    int density_offset;
+    int3 temperature_xyz;
+    int temperature_offset;
+    int3 le_xyz;
+    int le_offset;
+    int3 majorant_xyz;
+    int majorant_offset;
+    float3 temperature_bound_min;
+    float temperature_start;
+    float3 temperature_bound_max;
+    float pdadding;
+    float4 transform[3];
+    float4 transformInverse[3];
+    
+    float3 get_g() { return clamp(aniso, -1 + 1e-3, 1 - 1e-3); }
+    float3 get_sigma_a() { return sigma_a * scale; }
+    float3 get_sigma_s() { return sigma_s * scale; }
+    float3 get_sigma_t() { return sigma_a * scale + sigma_s * scale; }
+    MediumType get_medium_type() { return medium_type; }
+    
+    float4x4 medium_to_world() { return transpose(float4x4(transformInverse[0], transformInverse[1], transformInverse[2], float4(0, 0, 0, 1))); }
+    float4x4 world_to_medium() { return transpose(float4x4(transform[0], transform[1], transform[2], float4(0, 0, 0, 1))); }
+
+    bool is_valid() { return bitfield != 0x80000000; }
+};
+
 #endif // _SRENDERER_LIGHTBVH_HEADER_

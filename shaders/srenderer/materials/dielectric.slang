@@ -14,8 +14,8 @@ struct DielectricMaterial : IBxDFParameter {
         eta = 1.5f;
     }
     __init(MaterialData data, float2 uv) {
-        alpha = data.floatvec_1.w;
-        eta = data.floatvec_2.w;
+        alpha = 0.1f;
+        eta = 1.5f;
     }
 };
 
@@ -32,8 +32,8 @@ struct DielectricBRDF : IBxDF {
 
         // Evaluate rough dielectric BSDF
         // Compute generalized half vector _wm_
-        float cosTheta_o = theta_phi_coord::cos_theta(wo);
-        float cosTheta_i = theta_phi_coord::cos_theta(wi);
+        float cosTheta_o = theta_phi_coord::cos_phi(wo);
+        float cosTheta_i = theta_phi_coord::cos_phi(wi);
         bool reflect = cosTheta_i * cosTheta_o > 0;
         float etap = 1;
         if (!reflect) etap = cosTheta_o > 0 ? material.eta : (1 / material.eta);
@@ -74,37 +74,7 @@ struct DielectricBRDF : IBxDF {
         o.wo = float3(0, 0, 0);
         o.pdf = 0;
 
-        if (material.eta == 1 || IsotropicTrowbridgeReitzDistribution::effectively_smooth(material.alpha)) {
-            const Frame frame = i.shading_frame;
-            const float3 wi = i.shading_frame.to_local(i.wi);
-            // Sample perfect specular dielectric BSDF
-            const float R = fresnel_dielectric(theta_phi_coord::cos_theta(wi), material.eta);
-            const float T = 1 - R;
-            // Compute probabilities pr and pt for sampling reflection and transmission
-            const float pr = R; const float pt = T;
-            if (pr == 0 && pt == 0) return o;
-
-            if (i.u.z < pr / (pr + pt)) {
-                // Sample perfect specular dielectric BRDF
-                o.wo = frame.to_world(float3(-wi.x, -wi.y, wi.z));
-                const float3 fr = R;
-                o.pdf = pr / (pr + pt);
-                o.bsdf = fr;
-                return o;
-            } else {
-                // Sample perfect specular dielectric BTDF
-                // Compute ray direction for specular transmission
-                float3 wo = safe_refract(wi, float3(0, 0, 1), material.eta);
-                if (all(wo == 0)) return o;
-
-                const float3 ft = T;
-                // Account for non-symmetry with transmission to different medium
-                o.wo = frame.to_world(wo);
-                o.pdf = pt / (pr + pt);
-                o.bsdf = ft;
-                return o;
-            }
-        } else {
+        {
             // Sample rough dielectric BSDF
             IsotropicTrowbridgeReitzParameter params;
             params.alpha = material.alpha;
@@ -115,6 +85,7 @@ struct DielectricBRDF : IBxDF {
             const float R = fresnel_dielectric(dot(i.wi, o.wh), material.eta);
             const float T = 1 - R;
             const float pr = R; const float pt = T;
+
             if (i.u.z < pr / (pr + pt)) {
                 // Sample reflection at rough dielectric interface
                 float3 wh = i.shading_frame.to_local(o.wh);
@@ -130,7 +101,6 @@ struct DielectricBRDF : IBxDF {
                      * R / (4 * theta_phi_coord::abs_cos_theta(wi));
                 o.pdf = o.pdf_wh / (4 * abs(dot(wi, wh))) * pr / (pr + pt);
                 o.bsdf = f;
-                return o;
             } else {
                 // Sample transmission at rough dielectric interface
                 float eta = material.eta;
@@ -142,6 +112,7 @@ struct DielectricBRDF : IBxDF {
                     o.pdf = 0;
                     return o;
                 }
+
                 o.wo = i.shading_frame.to_world(wo);
                 // Compute PDF of rough dielectric transmission
                 float denom = sqr(dot(wo, wh) + dot(wi, wh) / eta);
@@ -153,6 +124,7 @@ struct DielectricBRDF : IBxDF {
                      * T * abs(dot(wi, wh) * dot(wo, wh) / (theta_phi_coord::abs_cos_theta(wi) * denom));
                 // Account for non-symmetry with transmission to different medium
                 ft /= sqr(eta);
+
                 o.bsdf = ft;
             }
             return o;

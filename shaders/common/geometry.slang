@@ -149,6 +149,20 @@ struct bounds3 {
     }
 };
 
+/** * A 3D axis-aligned bounding box with integer coordinates.
+ * It is used to define a 3D grid for sampling.
+ */
+struct bounds3i {
+    int3 pMin;
+    int3 pMax;
+
+    static bool inside_exclusive(int3 p, bounds3i b) {
+        return (p.x >= b.pMin.x && p.x < b.pMax.x &&
+                p.y >= b.pMin.y && p.y < b.pMax.y &&
+                p.z >= b.pMin.z && p.z < b.pMax.z);
+    }
+};
+
 bool inside(float3 p, bounds3 b) {
     return (p.x >= b.pMin.x && p.x <= b.pMax.x &&
             p.y >= b.pMin.y && p.y <= b.pMax.y &&
@@ -200,5 +214,6 @@ DirectionCone union (DirectionCone a, DirectionCone b) {
     float3 w = mul(a.w, rotate(degrees(theta_r), wr));
     return DirectionCone(w, cos(theta_o));
 }
+
 
 #endif // _SIBYLENGINE_GEOMETRY_SLANG_

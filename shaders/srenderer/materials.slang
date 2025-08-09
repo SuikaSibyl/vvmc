@@ -7,6 +7,7 @@
 #include "srenderer/materials/dielectric.slang"
 #include "srenderer/materials/plastic.slang"
 #include "srenderer/materials/rglbrdf.slang"
+#include "srenderer/materials/chromaggx.slang"
 
 namespace materials {
 /**
@@ -24,6 +25,7 @@ ibsdf::sample_out bsdf_sample(ibsdf::sample_in i, MaterialData material, float2 
    // case 3: return OrenNayarBRDF::sample(i, OrenNayarMaterial(material, uv));
    // case 4: return MixtureBRDF::sample(i, MixtureMaterial(material, uv));
    // case 5: return RefractBRDF::sample(i, RefractMaterial(material, uv));
+   case 9: return ChromaGGXBRDF::sample(i, ChromaGGXMaterial(material, uv));
    case 10: return RGLBRDF::sample(i, RGLMaterial(material, uv));
    }
    return {};
@@ -38,6 +40,7 @@ float3 bsdf_eval(ibsdf::eval_in i, MaterialData material, float2 uv) {
    // case 3: return OrenNayarBRDF::sample(i, OrenNayarMaterial(material, uv));
    // case 4: return MixtureBRDF::sample(i, MixtureMaterial(material, uv));
    // case 5: return RefractBRDF::sample(i, RefractMaterial(material, uv));
+   case 9: return ChromaGGXBRDF::eval(i, ChromaGGXMaterial(material, uv));
    case 10: return RGLBRDF::eval(i, RGLMaterial(material, uv));
    }
    return {};
@@ -52,6 +55,7 @@ float bsdf_pdf(ibsdf::pdf_in i, MaterialData material, float2 uv) {
    // case 3: return OrenNayarBRDF::sample(i, OrenNayarMaterial(material, uv));
    // case 4: return MixtureBRDF::sample(i, MixtureMaterial(material, uv));
    // case 5: return RefractBRDF::sample(i, RefractMaterial(material, uv));
+   case 9: return ChromaGGXBRDF::pdf(i, ChromaGGXMaterial(material, uv));
    case 10: return RGLBRDF::pdf(i, RGLMaterial(material, uv));
    }
    return 0.0f;
@@ -81,13 +85,25 @@ ibsdf::sample_out bsdf_sample_with_perchannel_pdf(
        return so;
    }
    case 2: {
-       ibsdf::sample_out so = LambertianBRDF::sample(i, LambertMaterial(material, uv));
+       ibsdf::sample_out so = DielectricBRDF::sample(i, DielectricMaterial(material, uv));
        cv = float3(so.pdf, so.pdf, so.pdf); // Lambertian is same across channels
        return so;
    }
    case 3: {
        ibsdf::sample_out so = PlasticBRDF::sample(i, PlasticMaterial(material, uv));
        cv = float3(so.pdf, so.pdf, so.pdf); // Lambertian is same across channels
+       return so;
+   }
+   case 9: {
+       ChromaGGXMaterial mat = ChromaGGXMaterial(material, uv);
+       ibsdf::sample_out so = ChromaGGXBRDF::sample(i, mat);
+       ibsdf::pdf_in pdf_in;
+       pdf_in.wi = i.wi;
+       pdf_in.wo = so.wo;
+       pdf_in.geometric_normal = i.geometric_normal;
+       pdf_in.shading_frame = i.shading_frame;
+       pdf_in.wh = so.wh;
+       cv = ChromaGGXBRDF::perchannel_pdf(pdf_in, mat) * so.pdf;
        return so;
    }
    case 10: return RGLBRDF::sample_with_perchannel_pdf(i, RGLMaterial(material, uv), cv);

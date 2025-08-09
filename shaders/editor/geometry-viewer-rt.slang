@@ -32,17 +32,12 @@ float3 path_tracing(Ray ray, inout random::RandomSampler sampler) {
     // If the primary ray hit nothing, return the background color (white):
     if (!primary_payload.hit.has_hit()) return float3(1, 1, 1);
 
+    GeometryData geometry = scene_read_geometry(primary_payload.hit.geometryID);
+    Optional<MaterialData> material = scene_read_material(geometry);
+    if (!material.hasValue) return float3(1, 0, 1);
+
     float3 radiance = float3(0.f, 0.f, 0.f);
     
-    if (let ls = primary_payload.light_sample(primary_ray, sampler.next_float3())) {
-        Ray shadow_ray = primary_payload.hit.spawn_visibility_ray(ls.x);
-        if (visibility_ray_query(shadow_ray)) {
-            float3 bsdf = primary_payload.bsdf_eval(-primary_ray.direction, shadow_ray.direction);
-            float bsdf_pdf = primary_payload.bsdf_pdf(-primary_ray.direction, shadow_ray.direction);
-            radiance += bsdf * ls.L / (ls.pdf + bsdf_pdf);
-        }
-    }
-
     // If the primary ray hit something, sample the BSDF:
     if (let bs = primary_payload.bsdf_sample(primary_ray, sampler.next_float3())) {
         Ray ray = primary_payload.hit.spawn_ray(bs.wo);
@@ -51,8 +46,10 @@ float3 path_tracing(Ray ray, inout random::RandomSampler sampler) {
             // If the ray hit something, accumulate the radiance:
             GeometryData next_geometry = scene_read_geometry(payload.hit.geometryID);
             Optional<MaterialData> material = scene_read_material(next_geometry.materialID);
-            float light_pdf = primary_payload.light_pdf(payload);
-            radiance += bs.bsdf * material.value.emission() / (bs.pdf + light_pdf);
+            radiance += bs.bsdf * material.value.emission() / bs.pdf;
+        }
+        else {
+            radiance += bs.bsdf / bs.pdf;
         }
     }
 

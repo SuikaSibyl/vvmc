@@ -20,6 +20,9 @@ RWStructuredBuffer<LightData>       se_light_buffer;
 RWStructuredBuffer<SceneData>       se_scene_buffer;
 RWStructuredBuffer<LightBVHNode>    se_lightbvh_nodes;
 RWStructuredBuffer<uint32_t>        se_lightbvh_trails;
+RWStructuredBuffer<MediumData>      se_medium_buffer;
+RWStructuredBuffer<float>           se_medium_grid_buffer;
+
 Sampler2D                           se_textures[];
 RaytracingAccelerationStructure     se_scene_tlas;
 
@@ -43,6 +46,9 @@ Optional<MaterialData> scene_read_material(GeometryData geometry) {
     if (geometry.materialID < 0) return none;
     return se_material_buffers[geometry.materialID];
 }
+// Read a camera info from the camera buffer.
+MediumData scene_read_medium(int mediumID) { return se_medium_buffer[mediumID]; }
+
 // Read a vertex indices from the index buffer of a mesh.
 int3 scene_read_triangle_indices(const GeometryData data, int triangleIndex) {
     return int3(

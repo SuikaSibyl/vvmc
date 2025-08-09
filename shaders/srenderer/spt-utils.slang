@@ -7,6 +7,12 @@
 #include "srenderer/lights.slang"
 
 extension IntersectionPayload {
+    GeometryData geometry() { return scene_read_geometry(hit.geometryID); }
+    Optional<MaterialData> material() {
+        GeometryData geometry = scene_read_geometry(hit.geometryID);
+        return scene_read_material(geometry);
+    }
+
     /**
      * Sample the BSDF at the intersection point.
      * @param ri: incoming ray
@@ -56,6 +62,7 @@ extension IntersectionPayload {
         ibsdf::pdf_in pdf_in;
         pdf_in.wi = wi;
         pdf_in.wo = wo;
+        pdf_in.wh = normalize(pdf_in.wi + pdf_in.wo);
         pdf_in.shading_frame = hit.get_shading_frame();
         pdf_in.geometric_normal = hit.geometryNormal;
         return materials::bsdf_pdf(pdf_in, material.value, hit.texcoord);
@@ -154,6 +161,93 @@ extension IntersectionPayload {
         }
         return float3(0.f, 0.f, 0.f);
     }
+}
+
+/**
+ * Sample the light at the intersection point.
+ * Additionally, return the per-channel pdf for RCV.
+ * @param ri: incoming ray
+ * @param u: random sample in [0, 1]^2
+ * @param cv: output per-channel pdf
+ * @return Optional containing the sampled light information, or none if sampling failed.
+ */
+Optional<ilight::sample_li_out> light_sample_with_perchannel_pdf(float3 position, Ray ri, float3 u, out float3 cv) {
+    ilight::sample_li_in nee_i;
+    nee_i.p = position;
+    nee_i.ns = float3(0, 0, 0);
+    nee_i.uv = u.xy;
+    return lights::nee_lbvh_with_perchannel_pdf(nee_i, u.z,
+            int(ImportanceFacotr::Use_Power 
+              | ImportanceFacotr::Use_Distance 
+              | ImportanceFacotr::Use_Cone), cv);
+}
+
+struct light_sample_ctx {
+    float3 position;
+    float3 geometry_normal;
+    float4 aux_pdf;
+
+    static light_sample_ctx from_payload(IntersectionPayload payload, float4 _aux_pdf) {
+        light_sample_ctx ctx;
+        ctx.position = payload.hit.position;
+        ctx.geometry_normal = payload.hit.geometryNormal;
+        ctx.aux_pdf = _aux_pdf;
+        return ctx;
+    }
+
+    static light_sample_ctx from_poistion(float3 position) {
+        light_sample_ctx ctx;
+        ctx.position = position;
+        ctx.geometry_normal = float3(0, 0, 0);
+        ctx.aux_pdf = float4(1, 1, 1, 1);
+        return ctx;
+    }
+};
+
+float pdf_nee(
+    const light_sample_ctx sample_ctx,
+    const IntersectionPayload light_payload,
+) {
+    float nee_pdf = 0.f;
+    int lightID = se_geometry_buffers[light_payload.hit.geometryID].lightID;
+    if (lightID >= 0) {
+        lightID += light_payload.hit.primitiveID;
+        ilight::sample_li_pdf_in nee_pdf_i;
+        nee_pdf_i.lightID = lightID;
+        nee_pdf_i.ref_point = sample_ctx.position;
+        nee_pdf_i.ref_normal = sample_ctx.geometry_normal;
+        nee_pdf_i.light_point = light_payload.hit.position;
+        nee_pdf_i.light_normal = light_payload.hit.geometryNormal;
+        nee_pdf = lights::nee_lbvh_pdf(nee_pdf_i,
+              (uint)ImportanceFacotr::Use_Power
+            | (uint)ImportanceFacotr::Use_Distance
+            | (uint)ImportanceFacotr::Use_Cone);
+        nee_pdf = discard_nan_inf(nee_pdf);
+    }
+    return nee_pdf;
+}
+
+float4 pdf_nee_with_per_channel_pdf(
+    const light_sample_ctx sample_ctx,
+    const IntersectionPayload light_payload,
+) {
+    float4 nee_pdf = 0.f;
+    int lightID = se_geometry_buffers[light_payload.hit.geometryID].lightID;
+    if (lightID >= 0) {
+        lightID += light_payload.hit.primitiveID;
+        ilight::sample_li_pdf_in nee_pdf_i;
+        nee_pdf_i.lightID = lightID;
+        nee_pdf_i.ref_point = sample_ctx.position;
+        nee_pdf_i.ref_normal = sample_ctx.geometry_normal;
+        nee_pdf_i.light_point = light_payload.hit.position;
+        nee_pdf_i.light_normal = light_payload.hit.geometryNormal;
+        nee_pdf = lights::nee_lbvh_pdf_with_per_channel_pdf(nee_pdf_i,
+            (uint)ImportanceFacotr::Use_Power
+            | (uint)ImportanceFacotr::Use_Distance
+            | (uint)ImportanceFacotr::Use_Cone);
+        nee_pdf = discard_nan_inf(nee_pdf);
+    }
+    return nee_pdf;
 }
 
 #endif // _SRENDERER_SPT_UTILS_SLANG_
